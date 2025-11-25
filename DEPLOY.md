@@ -1,20 +1,20 @@
-# Zeabur 部署指南
+# Zeabur Deployment Guide
 
-本指南将帮助你将通义千问 API 代理服务部署到 Zeabur 平台。
+This guide will help you deploy the Qwen API proxy service to the Zeabur platform.
 
-## 📋 前置要求
+## 📋 Prerequisites
 
-1. 一个 [Zeabur](https://zeabur.com) 账号
-2. 一个 GitHub 账号（用于代码仓库）
-3. 通义千问的 Cookie 和 Token
+1. A [Zeabur](https://zeabur.com) account
+2. A GitHub account (for code repository)
+3. Qwen Cookie and Token
 
-## 🚀 部署步骤
+## 🚀 Deployment Steps
 
-### 方法一：通过 GitHub 仓库部署（推荐）
+### Method 1: Deploy via GitHub Repository (Recommended)
 
-#### 1. 准备代码仓库
+#### 1. Prepare Code Repository
 
-确保你的代码已经推送到 GitHub 仓库：
+Ensure your code has been pushed to the GitHub repository:
 
 ```bash
 git add .
@@ -22,119 +22,119 @@ git commit -m "Prepare for Zeabur deployment"
 git push origin main
 ```
 
-#### 2. 在 Zeabur 中创建项目
+#### 2. Create Project in Zeabur
 
-1. 登录 [Zeabur](https://zeabur.com)
-2. 点击 "New Project" 创建新项目
-3. 选择 "Import from GitHub" 并授权访问你的 GitHub 仓库
-4. 选择你的 `QwenChat2Api` 仓库
+1. Login to [Zeabur](https://zeabur.com)
+2. Click "New Project" to create a new project
+3. Select "Import from GitHub" and authorize access to your GitHub repository
+4. Select your `QwenChat2Api` repository
 
-#### 3. 配置环境变量
+#### 3. Configure Environment Variables
 
-在 Zeabur 项目设置中添加以下环境变量：
+Add the following environment variables in the Zeabur project settings:
 
-**必需的环境变量：**
-
-```
-COOKIE=你的通义千问Cookie值
-QWEN_TOKEN=你的通义千问Token（可选，会自动从Cookie获取）
-```
-
-**可选的环境变量：**
+**Required Environment Variables:**
 
 ```
-API_KEY=sk-aaaa-bbbb-cccc-dddd           # API密钥（可选）
-SERVER_MODE=true                         # 服务器端模式（默认：true）
-DEBUG_MODE=false                         # 调试模式（默认：false）
-SERVER_PORT=8000                         # 服务端口（默认：8000，Zeabur会自动设置PORT）
-VISION_FALLBACK_MODEL=qwen3-vl-plus      # 视觉回退模型（默认：qwen3-vl-plus）
-AUTO_REFRESH_TOKEN=true                  # 自动刷新Token（默认：true）
-TOKEN_REFRESH_INTERVAL_HOURS=24          # Token刷新间隔（默认：24小时）
+COOKIE=Your Qwen Cookie value
+QWEN_TOKEN=Your Qwen Token (optional, will be automatically fetched from Cookie)
 ```
 
-#### 4. 获取 Cookie 和 Token
+**Optional Environment Variables:**
 
-##### 方法 A：从浏览器获取
+```
+API_KEY=sk-aaaa-bbbb-cccc-dddd           # API Key (optional)
+SERVER_MODE=true                         # Server-side mode (default: true)
+DEBUG_MODE=false                         # Debug mode (default: false)
+SERVER_PORT=8000                         # Service port (default: 8000, Zeabur will automatically set PORT)
+VISION_FALLBACK_MODEL=qwen3-vl-plus      # Vision fallback model (default: qwen3-vl-plus)
+AUTO_REFRESH_TOKEN=true                  # Automatically refresh Token (default: true)
+TOKEN_REFRESH_INTERVAL_HOURS=24          # Token refresh interval (default: 24 hours)
+```
 
-1. 打开浏览器访问 https://chat.qwen.ai
-2. 登录你的账户
-3. 打开开发者工具 (F12)
-4. 切换到 Network 标签页
-5. 刷新页面或发送消息
-6. 点击任意请求，在 Headers 中找到 Cookie 值
-7. 复制完整的 Cookie 值（包括所有键值对）
+#### 4. Get Cookie and Token
 
-##### 方法 B：手动编辑配置文件
+##### Method A: Get from Browser
 
-1. 在本地创建 `cookie.txt` 文件，粘贴 Cookie 值
-2. 运行服务（会自动从 Cookie 获取 Token）：
+1. Open browser and visit https://chat.qwen.ai
+2. Login to your account
+3. Open Developer Tools (F12)
+4. Switch to Network tab
+5. Refresh the page or send a message
+6. Click any request and find the Cookie value in Headers
+7. Copy the complete Cookie value (including all key-value pairs)
+
+##### Method B: Manual Configuration File Editing
+
+1. Create `cookie.txt` file locally and paste the Cookie value
+2. Run the service (it will automatically get Token from Cookie):
    ```bash
    npm start
    ```
-3. 从 `config.json` 中复制 `QWEN_TOKEN` 值
-4. 将 Cookie 和 Token 分别设置为 Zeabur 的环境变量
+3. Copy the `QWEN_TOKEN` value from `config.json`
+4. Set the Cookie and Token as Zeabur environment variables separately
 
-#### 5. 部署
+#### 5. Deploy
 
-1. 在 Zeabur 项目页面，点击 "Deploy" 按钮
-2. Zeabur 会自动检测 Node.js 项目并开始构建
-3. 等待构建完成（通常需要 2-5 分钟）
-4. 部署成功后，你会获得一个公共 URL（例如：`https://your-project.zeabur.app`）
+1. On the Zeabur project page, click the "Deploy" button
+2. Zeabur will automatically detect the Node.js project and start building
+3. Wait for the build to complete (usually takes 2-5 minutes)
+4. After successful deployment, you will get a public URL (e.g., `https://your-project.zeabur.app`)
 
-### 方法二：通过 Zeabur CLI 部署
+### Method 2: Deploy via Zeabur CLI
 
 ```bash
-# 安装 Zeabur CLI
+# Install Zeabur CLI
 npm install -g @zeabur/cli
 
-# 登录
+# Login
 zeabur login
 
-# 部署
+# Deploy
 zeabur deploy
 ```
 
-## 🔧 配置说明
+## 🔧 Configuration Description
 
-### 环境变量优先级
+### Environment Variable Priority
 
-项目支持两种配置方式：
+The project supports two configuration methods:
 
-1. **环境变量**（推荐用于云部署）
-   - 优先使用环境变量
-   - 适合 Zeabur、Vercel 等云平台
+1. **Environment Variables** (recommended for cloud deployment)
+   - Prioritize environment variables
+   - Suitable for cloud platforms like Zeabur, Vercel
 
-2. **配置文件**（适合本地开发）
-   - `config.json` - 应用配置
-   - `cookie.txt` - Cookie 存储
+2. **Configuration Files** (suitable for local development)
+   - `config.json` - Application configuration
+   - `cookie.txt` - Cookie storage
 
-### 重要配置项
+### Important Configuration Items
 
-- **COOKIE**: 通义千问的 Cookie，用于自动获取和刷新 Token
-- **QWEN_TOKEN**: 通义千问的认证 Token（可选，会自动获取）
-- **API_KEY**: 用于保护 API 端点的密钥（可选）
-- **SERVER_PORT**: 服务端口（Zeabur 会自动设置 `PORT` 环境变量）
+- **COOKIE**: Qwen Cookie, used to automatically get and refresh Tokens
+- **QWEN_TOKEN**: Qwen authentication Token (optional, will be automatically acquired)
+- **API_KEY**: Key to protect API endpoints (optional)
+- **SERVER_PORT**: Service port (Zeabur will automatically set the `PORT` environment variable)
 
-## 📝 验证部署
+## 📝 Verify Deployment
 
-部署完成后，访问以下端点验证服务：
+After deployment, access the following endpoints to verify the service:
 
-### 1. 健康检查
+### 1. Health Check
 
 ```bash
 curl https://your-project.zeabur.app/health
 ```
 
-应该返回服务状态信息。
+Should return service status information.
 
-### 2. 获取模型列表
+### 2. Get Model List
 
 ```bash
 curl https://your-project.zeabur.app/v1/models \
   -H "Authorization: Bearer your_api_key"
 ```
 
-### 3. 测试聊天
+### 3. Test Chat
 
 ```bash
 curl -X POST https://your-project.zeabur.app/v1/chat/completions \
@@ -143,14 +143,14 @@ curl -X POST https://your-project.zeabur.app/v1/chat/completions \
   -d '{
     "model": "qwen3-max",
     "messages": [
-      {"role": "user", "content": "你好"}
+      {"role": "user", "content": "Hello"}
     ]
   }'
 ```
 
-## 🔄 更新部署
+## 🔄 Update Deployment
 
-### 更新代码
+### Update Code
 
 ```bash
 git add .
@@ -158,97 +158,97 @@ git commit -m "Update code"
 git push origin main
 ```
 
-Zeabur 会自动检测到代码更新并重新部署。
+Zeabur will automatically detect the code update and redeploy.
 
-### 更新环境变量
+### Update Environment Variables
 
-1. 在 Zeabur 项目设置中修改环境变量
-2. 点击 "Redeploy" 重新部署
+1. Modify environment variables in the Zeabur project settings
+2. Click "Redeploy" to redeploy
 
-## 🐛 故障排除
+## 🐛 Troubleshooting
 
-### 1. 服务无法启动
+### 1. Service Cannot Start
 
-**问题**: 部署后服务无法启动
+**Issue**: Service cannot start after deployment
 
-**解决方案**:
-- 检查环境变量是否正确设置
-- 查看 Zeabur 的日志输出
-- 确认 `COOKIE` 和 `QWEN_TOKEN` 是否有效
+**Solutions**:
+- Check if environment variables are set correctly
+- View Zeabur's log output
+- Confirm if `COOKIE` and `QWEN_TOKEN` are valid
 
-### 2. Token 过期
+### 2. Token Expiration
 
-**问题**: Token 过期导致请求失败
+**Issue**: Request failure due to token expiration
 
-**解决方案**:
-- 确保 `COOKIE` 环境变量已设置
-- 服务会自动从 Cookie 刷新 Token（如果 `AUTO_REFRESH_TOKEN=true`）
-- 或者手动更新 `QWEN_TOKEN` 环境变量
+**Solutions**:
+- Ensure `COOKIE` environment variable is set
+- Service will automatically refresh Token from Cookie (if `AUTO_REFRESH_TOKEN=true`)
+- Or manually update the `QWEN_TOKEN` environment variable
 
-### 3. 404 错误
+### 3. 404 Error
 
-**问题**: 访问端点返回 404
+**Issue**: Access endpoint returns 404
 
-**解决方案**:
-- 检查 URL 是否正确
-- 确认服务已成功部署
-- 查看服务日志
+**Solutions**:
+- Check if URL is correct
+- Confirm service has been successfully deployed
+- View service logs
 
-### 4. 认证失败
+### 4. Authentication Failure
 
-**问题**: 返回 401 认证失败
+**Issue**: Returns 401 authentication failure
 
-**解决方案**:
-- 检查 `API_KEY` 是否正确设置
-- 确认请求头中的 Authorization 格式正确
-- 如果是服务器端模式，确保 `SERVER_MODE=true`
+**Solutions**:
+- Check if `API_KEY` is set correctly
+- Confirm Authorization format in request headers is correct
+- If in server-side mode, ensure `SERVER_MODE=true`
 
-## 📊 监控和日志
+## 📊 Monitoring and Logs
 
-### 查看日志
+### View Logs
 
-在 Zeabur 项目页面，点击你的服务，可以查看：
-- 实时日志输出
-- 构建日志
-- 错误日志
+On the Zeabur project page, click your service to view:
+- Real-time log output
+- Build logs
+- Error logs
 
-### 健康检查
+### Health Check
 
-定期访问 `/health` 端点检查服务状态：
+Regularly access the `/health` endpoint to check service status:
 
 ```bash
 curl https://your-project.zeabur.app/health
 ```
 
-返回信息包括：
-- 服务状态
-- Token 有效性
-- Token 剩余时间
-- 配置信息
+Return information includes:
+- Service status
+- Token validity
+- Token remaining time
+- Configuration information
 
-## 🔐 安全建议
+## 🔐 Security Recommendations
 
-1. **保护 API_KEY**: 不要将 API_KEY 提交到代码仓库
-2. **定期更新 Cookie**: Cookie 可能会过期，定期更新环境变量
-3. **使用 HTTPS**: Zeabur 默认提供 HTTPS
-4. **限制访问**: 考虑添加 IP 白名单或使用 Zeabur 的访问控制功能
+1. **Protect API_KEY**: Don't commit API_KEY to the code repository
+2. **Regular Cookie Updates**: Cookies may expire, regularly update environment variables
+3. **Use HTTPS**: Zeabur provides HTTPS by default
+4. **Restrict Access**: Consider adding IP whitelist or using Zeabur's access control features
 
-## 📚 相关链接
+## 📚 Related Links
 
-- [Zeabur 文档](https://zeabur.com/docs)
-- [项目 README](./README.md)
-- [通义千问官网](https://chat.qwen.ai)
+- [Zeabur Documentation](https://zeabur.com/docs)
+- [Project README](./README.md)
+- [Qwen Official Website](https://chat.qwen.ai)
 
-## 💡 提示
+## 💡 Tips
 
-1. **首次部署**: 建议先不设置 `QWEN_TOKEN`，让服务自动从 `COOKIE` 获取
-2. **自动刷新**: 启用 `AUTO_REFRESH_TOKEN=true` 可以自动维护 Token
-3. **调试模式**: 遇到问题时可以临时启用 `DEBUG_MODE=true` 查看详细日志
-4. **端口配置**: Zeabur 会自动设置 `PORT` 环境变量，无需手动配置
+1. **First Deployment**: It's recommended to not set `QWEN_TOKEN` initially, let the service automatically get it from `COOKIE`
+2. **Auto Refresh**: Enable `AUTO_REFRESH_TOKEN=true` to automatically maintain the Token
+3. **Debug Mode**: Temporarily enable `DEBUG_MODE=true` when encountering issues to view detailed logs
+4. **Port Configuration**: Zeabur will automatically set the `PORT` environment variable, no need to configure manually
 
-## 🎉 完成！
+## 🎉 Done!
 
-部署成功后，你的通义千问 API 代理服务就可以通过 Zeabur 提供的公共 URL 访问了。
+After successful deployment, your Qwen API proxy service can be accessed via the public URL provided by Zeabur.
 
-如有问题，请查看 Zeabur 的日志或联系支持。
+If you have any issues, please check Zeabur's logs or contact support.
 

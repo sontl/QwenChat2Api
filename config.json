@@ -1,6 +1,5 @@
 {
-  "API_KEY": "sk-aaaa-bbbb-cccc-dddd",
-  "QWEN_TOKEN": "",
+  "QWEN_TOKEN": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjRhYmQ5OWVlLWY5MTAtNGNhOC1hMjBhLTcwZjA3YmVkODRkYSIsImxhc3RfcGFzc3dvcmRfY2hhbmdlIjoxNzUwNjYwODczLCJleHAiOjE3NjI5MjQ1MDd9.wuSKQpZfoff1MBYK3Kms-com5HTgi1JNouTr-KOa1q0",
   "SERVER_MODE": true,
   "DEBUG_MODE": false,
   "SERVER_PORT": 8000,

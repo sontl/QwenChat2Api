@@ -12,94 +12,94 @@ const { createQwenToOpenAIStreamTransformer, convertQwenResponseToOpenAI, collec
 const { startChatDeletionScheduler } = require('./lib/chat-deletion');
 const { identityPool } = require('./lib/identity-pool');
 
-// 日志由 lib/logger.js 统一管理
+// Logging is managed by lib/logger.js
 
 const QWEN_API_BASE_URL = 'https://chat.qwen.ai/api/v2/chat/completions';
 const QWEN_CHAT_NEW_URL = 'https://chat.qwen.ai/api/v2/chats/new';
 
-// 启动校验：检查基本配置
+// Startup validation: Check basic configuration
 function validateConfig() {
   const warnings = [];
-  if (!getQwenToken()) warnings.push('QWEN_TOKEN 未设置，将尝试从Cookie获取');
-  if (!getCookie()) warnings.push('Cookie文件不存在或未设置 COOKIE 环境变量，请设置 Cookie 以便自动获取 Token');
-  
+  if (!getQwenToken()) warnings.push('QWEN_TOKEN is not set, will attempt to get from Cookie');
+  if (!getCookie()) warnings.push('Cookie file does not exist or COOKIE environment variable is not set, please set Cookie to automatically acquire Token');
+
   if (warnings.length) {
     warnings.forEach(w => console.log('⚠️ ', w));
   }
 }
 
-// Token过期时间检测和警告
+// Token expiration time detection and warning
 function checkTokenExpiry() {
   const token = getQwenToken();
   if (!token) return;
-  
+
   const isExpired = isTokenExpired(token);
   const remainingTime = getTokenRemainingTime(token);
   const formattedTime = formatRemainingTime(remainingTime);
-  
+
   if (isExpired) {
-    console.log('⚠️  WARNING: QWEN_TOKEN 已过期！');
-    console.log('   请更新配置文件中的 QWEN_TOKEN');
+    console.log('⚠️  WARNING: QWEN_TOKEN has expired!');
+    console.log('   Please update the QWEN_TOKEN in the configuration file');
   } else {
     const remainingDays = Math.floor(remainingTime / (1000 * 60 * 60 * 24));
     if (remainingDays <= 7) {
-      console.log(`⚠️  WARNING: QWEN_TOKEN 将在 ${formattedTime} 后过期`);
-      console.log('   建议提前更新配置文件中的 QWEN_TOKEN');
+      console.log(`⚠️  WARNING: QWEN_TOKEN will expire in ${formattedTime}`);
+      console.log('   It is recommended to update the QWEN_TOKEN in the configuration file in advance');
     } else {
-      console.log(`✅ QWEN_TOKEN 有效，剩余时间: ${formattedTime}`);
+      console.log(`✅ QWEN_TOKEN is valid, remaining time: ${formattedTime}`);
     }
   }
 }
-// 启动时自动从cookie获取token
+// Automatically get token from cookie on startup
 async function initializeToken() {
   try {
-    // 检查是否已有有效token
+    // Check if there is already a valid token
     const currentToken = getQwenToken();
     if (currentToken && !isTokenExpired(currentToken)) {
-      logger.info('使用现有有效token');
+      logger.info('Using existing valid token');
       return;
     }
-    
-    // 检查cookie文件是否存在
+
+    // Check if cookie file exists
     const cookie = getCookie();
     if (!cookie) {
-      logger.info('Cookie文件不存在或未设置 COOKIE 环境变量，请设置 Cookie 以便自动获取 Token');
+      logger.info('Cookie file does not exist or COOKIE environment variable is not set, please set Cookie to automatically acquire Token');
       if (!currentToken) {
-        logger.error('没有可用的token和cookie，服务无法启动');
+        logger.error('No available token and cookie, service cannot start');
         process.exit(1);
       }
       return;
     }
-    
-    // 尝试从cookie获取新token
-    logger.info('检测到Cookie，尝试获取token...');
+
+    // Try to get new token from cookie
+    logger.info('Cookie detected, attempting to acquire token...');
     const result = await getTokenFromCookie();
-    
+
     if (result.success) {
-      // 如果是环境变量模式，直接更新内存中的配置
+      // If in environment variable mode, directly update the configuration in memory
       if (result.envMode && result.newToken) {
         config.QWEN_TOKEN = result.newToken;
-        logger.info('Token获取成功（环境变量模式，已更新内存配置）', { 
-          newTokenLength: result.newToken.length 
+        logger.info('Token acquired successfully (environment variable mode, memory configuration updated)', {
+          newTokenLength: result.newToken.length
         });
       } else {
-        logger.info('Token获取成功，重新加载配置');
+        logger.info('Token acquired successfully, reloading configuration');
         reloadConfig();
       }
     } else {
-      logger.info('从cookie获取token失败:', result.error);
+      logger.info('Failed to acquire token from cookie:', result.error);
       if (!currentToken) {
-        logger.error('没有可用的token，服务可能无法正常工作');
+        logger.error('No available token, service may not work properly');
         process.exit(1);
       }
     }
   } catch (error) {
-    logger.error('初始化token时发生错误:', error);
+    logger.error('Error occurred during token initialization:', error);
     process.exit(1);
   }
 }
 
-// 工具函数：消息ID、图片检测
+// Utility functions: message ID, image detection
 function generateMessageId() { return randomUUID(); }
 function hasImagesInMessage(message) {
   if (!message || !Array.isArray(message.content)) return false;
@@ -108,7 +108,7 @@ function hasImagesInMessage(message) {
 
 async function createNewChat(token, cookie, model, chatType) {
   try {
-    logger.info('创建新聊天', { model, chatType });
+    logger.info('Creating new chat', { model, chatType });
     const requestId = randomUUID();
     const headers = {
       Authorization: `Bearer ${token}`,
@@ -122,12 +122,12 @@ async function createNewChat(token, cookie, model, chatType) {
       title: 'New Chat', models: [model], chat_mode: 'normal', chat_type: chatType, timestamp: Date.now()
     }, { headers });
     const chatId = res.data?.data?.id || null;
-    if (!chatId) logger.error('响应中没有聊天ID', res.data);
+    if (!chatId) logger.error('No chat ID in response', res.data);
     return chatId;
   } catch (e) {
     const status = e?.response?.status;
     const data = e?.response?.data;
-    logger.error('创建新聊天时出错', e, { status, dataPreview: typeof data === 'string' ? data.slice(0, 300) : JSON.stringify(data || {}).slice(0, 300) });
+    logger.error('Error creating new chat', e, { status, dataPreview: typeof data === 'string' ? data.slice(0, 300) : JSON.stringify(data || {}).slice(0, 300) });
     return null;
   }
 }
@@ -154,7 +154,7 @@ function validateQwenRequest(request) {
 }
 
 async function processImageUpload(imageUrl, authToken, cookie) {
-  // 兼容 main.ts：暂时不上传OSS，直接回传原始URL
+  // Compatible with main.ts: Temporarily skip OSS upload, directly pass through original URL
   let filename = `image_${Date.now()}.png`;
   let mimeType = 'image/png';
   if (typeof imageUrl === 'string' && imageUrl.startsWith('data:image/')) {
@@ -206,10 +206,10 @@ function extractImagesFromHistory(messages) {
 }
 
 async function transformOpenAIRequestToQwen(openAIRequest, token, cookie, opts = {}) {
-  if (!openAIRequest.messages || !Array.isArray(openAIRequest.messages)) throw new Error('无效请求：需要消息数组');
-  if (openAIRequest.messages.length === 0) throw new Error('无效请求：消息数组不能为空');
+  if (!openAIRequest.messages || !Array.isArray(openAIRequest.messages)) throw new Error('Invalid request: messages array is required');
+  if (openAIRequest.messages.length === 0) throw new Error('Invalid request: messages array cannot be empty');
   const model = openAIRequest.model || 'qwen-max';
-  const wantStream = openAIRequest.stream !== false; // 默认流式，显式 false 则非流
+  const wantStream = openAIRequest.stream !== false; // Default stream, explicit false means non-stream
   let chat_type = 't2t';
   const hasImages = openAIRequest.messages.some(msg => hasImagesInMessage(msg));
   if (model.endsWith('-image')) chat_type = 't2i';
@@ -222,14 +222,14 @@ async function transformOpenAIRequestToQwen(openAIRequest, token, cookie, opts =
   if (!disableVisionFallback && hasImages && !/(image|image_edit|video)$/.test(model) && config.VISION_FALLBACK_MODEL) {
     qwenModel = config.VISION_FALLBACK_MODEL;
     usedFallback = true;
-    logger.info('检测到图片，已切换视觉回退模型', { fallback: qwenModel });
+    logger.info('Image detected, switched to visual fallback model', { fallback: qwenModel });
   }
   const chatId = await createNewChat(token, cookie, qwenModel, chat_type);
-  if (!chatId) throw new Error('创建聊天会话失败');
+  if (!chatId) throw new Error('Failed to create chat session');
 
   if (chat_type === 'image_edit') {
     const lastUserMessage = openAIRequest.messages.filter(m=>m.role==='user').pop();
-    if (!lastUserMessage) throw new Error('未找到用于图片编辑的用户消息。');
+    if (!lastUserMessage) throw new Error('User message for image editing not found.');
     let textContent = '';
     const currentMessageImages = [];
     if (typeof lastUserMessage.content === 'string') textContent = lastUserMessage.content;
@@ -250,11 +250,11 @@ async function transformOpenAIRequestToQwen(openAIRequest, token, cookie, opts =
           const uploadedFile = await processImageUpload(imageUrl, token, cookie);
           files.push(uploadedFile);
         } catch (e) {
-          logger.error('图片上传失败，跳过该图片', e);
+          logger.error('Image upload failed, skipping this image', e);
         }
       }
       if (files.length === 0) {
-        logger.error('图片上传全部失败，切换到文本生图模式');
+        logger.error('All image uploads failed, switching to text-to-image mode');
       }
     }
     const messageId = generateMessageId();
@@ -272,7 +272,7 @@ async function transformOpenAIRequestToQwen(openAIRequest, token, cookie, opts =
         parentId: null,
         childrenIds: [],
         role: 'user',
-        content: textContent || '生成一张图片',
+        content: textContent || 'Generate an image',
         user_action: 'chat',
         files,
         timestamp,
@@ -290,7 +290,7 @@ async function transformOpenAIRequestToQwen(openAIRequest, token, cookie, opts =
 
   if (chat_type === 't2i') {
     const lastUserMessage = openAIRequest.messages.filter(m=>m.role==='user').pop();
-    if (!lastUserMessage) throw new Error('未找到用于图片生成的用户消息。');
+    if (!lastUserMessage) throw new Error('User message for image generation not found.');
     const openAISize = openAIRequest.size || '1024x1024';
     const sizeMap = { '256x256':'1:1','512x512':'1:1','1024x1024':'1:1','1792x1024':'16:9','1024x1792':'9:16','2048x2048':'1:1','1152x768':'3:2','768x1152':'2:3' };
     const qwenSize = sizeMap[openAISize] || calculateAspectRatio(openAISize);
@@ -314,7 +314,7 @@ async function transformOpenAIRequestToQwen(openAIRequest, token, cookie, opts =
         parentId: null,
         childrenIds: [],
         role: 'user',
-        content: textContent || '生成一张图片',
+        content: textContent || 'Generate an image',
         user_action: 'chat',
         files: [],
         timestamp,
@@ -347,7 +347,7 @@ async function transformOpenAIRequestToQwen(openAIRequest, token, cookie, opts =
         try {
           for (const imageUrl of imageUrls) { const uploadedFile = await processImageUpload(imageUrl, token, cookie); files.push(uploadedFile); }
           if (files.length > 0) messageChatType = 't2t';
-        } catch (e) { logger.error('图片上传失败，将跳过图片处理', e); }
+        } catch (e) { logger.error('Image upload failed, will skip image processing', e); }
       }
       content = textParts.join(' ');
     }
@@ -372,22 +372,22 @@ async function transformOpenAIRequestToQwen(openAIRequest, token, cookie, opts =
   return { request: transformedRequest, chatId, usedFallback };
 }
 
-// 流式转换器由 lib/transformers.js 统一提供
-// 删除聊天记录功能由 lib/chat-deletion.js 统一管理
+// Streaming transformer is provided by lib/transformers.js
+// Chat deletion functionality is managed by lib/chat-deletion.js
 
 const app = express();
 app.use(helmet());
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 
-// 认证中间件（支持服务器端与客户端两种模式）
-// - 服务器端模式：只验 SALT，QWEN_TOKEN 从配置注入
-// - 客户端模式：从 Authorization 解析 salt;qwen_token;cookie
+// Authentication middleware (supports both server-side and client-side modes)
+// - Server-side mode: Only verify API_KEY, QWEN_TOKEN is injected from config
+// - Client-side mode: Parse api_key;qwen_token;cookie from Authorization header
 app.use((req, res, next) => {
   if (req.path === '/' || req.path === '/health') return next();
   try {
     if (isServerMode()) {
-      // 服务器端认证：只校验 API_KEY（若配置），并把 token 从 config 注入
+      // Server-side authentication: Only verify API_KEY (if configured), and inject token from config
       const authHeader = req.headers['authorization'] || req.headers['Authorization'] || '';
       const apiKeyHeader = req.headers['x-api-key'] || '';
       const queryApiKey = (req.query && (req.query.api_key || req.query.key)) || '';
@@ -398,7 +398,7 @@ app.use((req, res, next) => {
           : '';
         const candidate = String(bearer || apiKeyHeader || queryApiKey || bodyApiKey || '').trim();
         if (!candidate || candidate !== getApiKey()) {
-          return res.status(401).json({ error: '身份验证失败', message: '无效的API密钥' });
+          return res.status(401).json({ error: 'Authentication failed', message: 'Invalid API key' });
         }
       }
       req.state = { qwenToken: config.QWEN_TOKEN, ssxmodItna: getCookie() };
@@ -408,37 +408,37 @@ app.use((req, res, next) => {
       const clientToken = (authHeader || '').replace(/^Bearer\s+/i, '');
       if (!clientToken) {
         const expected = getApiKey() ? 'Bearer api_key;qwen_token;ssxmod_itna' : 'Bearer qwen_token;ssxmod_itna';
-        return res.status(401).json({ error: '身份验证失败', message: '未提供认证令牌', format: expected, api_key_required: !!getApiKey() });
+        return res.status(401).json({ error: 'Authentication failed', message: 'No authentication token provided', format: expected, api_key_required: !!getApiKey() });
       }
       const parts = clientToken.split(';');
       let qwenToken, ssxmodItna;
       if (getApiKey()) {
-        if (parts[0]?.trim() !== getApiKey()) return res.status(401).json({ error: '身份验证失败', message: '无效的API密钥' });
+        if (parts[0]?.trim() !== getApiKey()) return res.status(401).json({ error: 'Authentication failed', message: 'Invalid API key' });
         qwenToken = parts[1]?.trim(); ssxmodItna = parts[2]?.trim() || '';
       } else { qwenToken = parts[0]?.trim(); ssxmodItna = parts[1]?.trim() || ''; }
-      if (!qwenToken) return res.status(401).json({ error: '身份验证失败', message: '需要通义千问令牌' });
+      if (!qwenToken) return res.status(401).json({ error: 'Authentication failed', message: 'Qwen token required' });
       req.state = { qwenToken, ssxmodItna };
       return next();
     }
-  } catch (e) { logger.error('身份验证过程中发生错误', e); return res.status(500).json({ error: '内部服务器错误' }); }
+  } catch (e) { logger.error('Error during authentication', e); return res.status(500).json({ error: 'Internal server error' }); }
 });
 
 app.get('/', (req, res) => {
-  const apiKeyStatus = getApiKey() ? '🔒 受限访问模式' : '🎯 开放访问模式';
-  const authMode = isServerMode() ? '服务器端认证 (配置文件)' : '客户端认证 (请求头)';
+  const apiKeyStatus = getApiKey() ? '🔒 Restricted Access Mode' : '🎯 Open Access Mode';
+  const authMode = isServerMode() ? 'Server-side Authentication (Configuration File)' : 'Client-side Authentication (Request Header)';
   const authFormat = isServerMode()
-    ? (getApiKey() ? 'Authorization: Bearer your_api_key' : 'Authorization 可选')
+    ? (getApiKey() ? 'Authorization: Bearer your_api_key' : 'Authorization Optional')
     : (getApiKey() ? 'Authorization: Bearer api_key;qwen_token;ssxmod_itna_value' : 'Authorization: Bearer qwen_token;ssxmod_itna_value');
   res.set('Content-Type','text/html; charset=utf-8');
-  res.send(`<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>通义千问 API 代理</title><script src="https://cdn.tailwindcss.com"></script></head><body class="font-sans min-h-screen flex items-center justify-center p-5 bg-gradient-to-br from-indigo-500 to-purple-600"><div class="w-full max-w-lg rounded-2xl bg-white/95 p-10 text-center shadow-2xl backdrop-blur-md"><div class="mb-3 flex items-center justify-center gap-2"><div class="h-2 w-2 animate-pulse rounded-full bg-emerald-500"></div><div class="text-lg font-semibold text-gray-800">服务运行正常</div></div><div class="mb-8 text-sm leading-relaxed text-gray-500">欲买桂花同载酒，终不似，少年游</div><div class="mb-8 text-left"><div class="mb-4 text-base font-semibold text-gray-700">API 端点</div><div class="flex items-center justify-between border-b border-gray-100 py-3"><span class="text-sm text-gray-500">模型列表</span><code class="font-mono rounded-md border border-gray-200 bg-gray-50 px-2 py-1 text-xs text-gray-800">/v1/models</code></div><div class="flex items-center justify-between py-3"><span class="text-sm text-gray-500">聊天完成</span><code class="font-mono rounded-md border border-gray-200 bg-gray-50 px-2 py-1 text-xs text-gray-800">/v1/chat/completions</code></div></div><div class="mb-6 rounded-xl border border-slate-200 bg-slate-50 p-5 text-left"><div class="mb-2 text-sm font-semibold text-gray-700">认证方式</div><div class="mb-1 text-xs font-medium text-emerald-600">${apiKeyStatus}</div><div class="mb-3 text-xs font-medium text-indigo-600">${authMode}</div><div class="font-mono break-all rounded-md border border-gray-300 bg-white px-3 py-2 text-left text-[12px] leading-snug text-gray-600">${authFormat}</div></div><div class="text-xs font-medium text-gray-400"><span class="text-indigo-500">通义千问 API 代理 v3.11</span><br/><span class="text-gray-400 mt-1">🚀 支持最新API格式</span></div></div></body></html>`);
+  res.send(`<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Qwen API Proxy</title><script src="https://cdn.tailwindcss.com"></script></head><body class="font-sans min-h-screen flex items-center justify-center p-5 bg-gradient-to-br from-indigo-500 to-purple-600"><div class="w-full max-w-lg rounded-2xl bg-white/95 p-10 text-center shadow-2xl backdrop-blur-md"><div class="mb-3 flex items-center justify-center gap-2"><div class="h-2 w-2 animate-pulse rounded-full bg-emerald-500"></div><div class="text-lg font-semibold text-gray-800">Service Running</div></div><div class="mb-8 text-sm leading-relaxed text-gray-500">The service is running normally</div><div class="mb-8 text-left"><div class="mb-4 text-base font-semibold text-gray-700">API Endpoints</div><div class="flex items-center justify-between border-b border-gray-100 py-3"><span class="text-sm text-gray-500">Models List</span><code class="font-mono rounded-md border border-gray-200 bg-gray-50 px-2 py-1 text-xs text-gray-800">/v1/models</code></div><div class="flex items-center justify-between py-3"><span class="text-sm text-gray-500">Chat Completion</span><code class="font-mono rounded-md border border-gray-200 bg-gray-50 px-2 py-1 text-xs text-gray-800">/v1/chat/completions</code></div></div><div class="mb-6 rounded-xl border border-slate-200 bg-slate-50 p-5 text-left"><div class="mb-2 text-sm font-semibold text-gray-700">Authentication Method</div><div class="mb-1 text-xs font-medium text-emerald-600">${apiKeyStatus}</div><div class="mb-3 text-xs font-medium text-indigo-600">${authMode}</div><div class="font-mono break-all rounded-md border border-gray-300 bg-white px-3 py-2 text-left text-[12px] leading-snug text-gray-600">${authFormat}</div></div><div class="text-xs font-medium text-gray-400"><span class="text-indigo-500">Qwen API Proxy v3.11</span><br/><span class="text-gray-400 mt-1">🚀 Supports Latest API Format</span></div></div></body></html>`);
 });
 
 app.get('/v1/models', async (req, res) => {
-  // 获取身份（优先使用身份池，否则使用传统方式）
+  // Get identity (prioritize identity pool, otherwise use traditional method)
   let identity = null;
   let token = req.state?.qwenToken;
   let ssx = req.state?.ssxmodItna || getCookie();
-  
+
   if (identityPool.initialized) {
     identity = identityPool.getAvailableIdentity();
     if (identity) {
@@ -446,14 +446,14 @@ app.get('/v1/models', async (req, res) => {
       ssx = identity.cookie;
     }
   }
-  
-  if (!token) return res.status(401).json({ error: '身份验证失败。没有可用的通义千问令牌。' });
+
+  if (!token) return res.status(401).json({ error: 'Authentication failed. No available Qwen token.' });
   try {
     const headers = buildBrowserLikeHeaders(token, { includeCookie: false });
     if (ssx) headers['Cookie'] = ssx;
     const rsp = await http.get('https://chat.qwen.ai/api/models', { headers });
-    
-    // 标记身份成功
+
+    // Mark identity as successful
     if (identity && identity.id !== 'legacy') {
       identityPool.markIdentitySuccess(identity);
     }
@@ -466,7 +466,7 @@ app.get('/v1/models', async (req, res) => {
       if (model?.info?.meta?.chat_type?.includes('t2i')) { processedModels.push({ ...model, id: `${model.id}-image` }); processedModels.push({ ...model, id: `${model.id}-image_edit` }); }
       if (model?.info?.meta?.chat_type?.includes('image_edit')) { if (!processedModels.some(m => m.id === `${model.id}-image_edit`)) processedModels.push({ ...model, id: `${model.id}-image_edit` }); }
     }
-    // 兜底：若上游为空，返回一组常用模型，避免前端不可用
+    // Fallback: if upstream is empty, return a set of common models to avoid frontend unavailability
     if (processedModels.length === 0) {
       const fallback = [
         { id: 'qwen3-max', object: 'model' },
@@ -479,21 +479,21 @@ app.get('/v1/models', async (req, res) => {
     }
     res.json({ object: 'list', data: processedModels });
   } catch (e) {
-    // 标记身份失败
+    // Mark identity as failed
     if (identity && identity.id !== 'legacy') {
       identityPool.markIdentityFailure(identity, e);
     }
-    logger.error('获取模型时出错', e);
-    res.status(502).json({ error: '从上游API获取模型失败。', details: e.message });
+    logger.error('Error getting models', e);
+    res.status(502).json({ error: 'Failed to get models from upstream API.', details: e.message });
   }
 });
 
-// 执行请求的辅助函数（支持重试）
+// Helper function to execute request (supports retry)
 async function executeQwenRequest(qwenRequest, identity, usedFallback, wantStream, requestId, req, res) {
   let apiUrl = QWEN_API_BASE_URL;
   const requestChatId = qwenRequest.chat_id;
   if (requestChatId) apiUrl = `${QWEN_API_BASE_URL}?chat_id=${requestChatId}`;
-  
+
   const headers = {
     'Authorization': `Bearer ${identity.token}`,
     'Content-Type': 'application/json',
@@ -504,8 +504,8 @@ async function executeQwenRequest(qwenRequest, identity, usedFallback, wantStrea
     'x-accel-buffering': 'no'
   };
   if (identity.cookie) headers['Cookie'] = identity.cookie;
-  
-  // 如使用视觉回退，补充更完整浏览器头以提升稳定性
+
+  // If using visual fallback, supplement more complete browser headers to improve stability
   if (usedFallback) {
     headers['sec-ch-ua'] = '"Google Chrome";v="120", "Chromium";v="120", "Not=A?Brand";v="24"';
     headers['sec-ch-ua-mobile'] = '?0';
@@ -516,54 +516,54 @@ async function executeQwenRequest(qwenRequest, identity, usedFallback, wantStrea
     headers['referer'] = 'https://chat.qwen.ai/';
   }
 
-  logger.info('将调用上游 API', {
+  logger.info('Will call upstream API', {
     requestId,
     url: apiUrl,
     identityId: identity.id
   });
 
   if (wantStream) {
-    // 流式：SSE 转发
+    // Stream: SSE forwarding
     setSseHeaders(res, requestId);
     let cleanup = null;
     const { safeWriteDone, cleanup: cleanupFn } = createKeepAlive(res);
     cleanup = cleanupFn;
-    
+
     try {
       const upstream = await http.post(apiUrl, qwenRequest, { headers, responseType: 'stream' });
-      logger.info('上游响应就绪', { requestId, status: upstream.status, identityId: identity.id });
-      
-      // 检查状态码
+      logger.info('Upstream response ready', { requestId, status: upstream.status, identityId: identity.id });
+
+      // Check status code
       if (upstream.status >= 400) {
         identityPool.markIdentityFailure(identity, new Error(`HTTP ${upstream.status}`));
-        throw new Error(`上游API返回错误: ${upstream.status}`);
+        throw new Error(`Upstream API returned error: ${upstream.status}`);
       }
-      
-      // 标记成功
+
+      // Mark success
       identityPool.markIdentitySuccess(identity);
-      
+
       const transformer = createQwenToOpenAIStreamTransformer();
-      upstream.data.on('error', (e)=>{ 
-        logger.error('上游流错误', e);
+      upstream.data.on('error', (e)=>{
+        logger.error('Upstream stream error', e);
         identityPool.markIdentityFailure(identity, e);
       });
-      transformer.on('error', (e)=>{ logger.error('转换器错误', e); });
-      upstream.data.on('end', () => { logger.info('上游数据流 end', { requestId }); safeWriteDone(); });
-      upstream.data.on('close', () => { logger.info('上游数据流 close', { requestId }); safeWriteDone(); });
-      transformer.on('end', () => { logger.info('转换器 end', { requestId }); safeWriteDone(); });
+      transformer.on('error', (e)=>{ logger.error('Transformer error', e); });
+      upstream.data.on('end', () => { logger.info('Upstream data stream end', { requestId }); safeWriteDone(); });
+      upstream.data.on('close', () => { logger.info('Upstream data stream close', { requestId }); safeWriteDone(); });
+      transformer.on('end', () => { logger.info('Transformer end', { requestId }); safeWriteDone(); });
       req.on('close', () => { try { upstream.data.destroy(); } catch (_) {} safeWriteDone(); });
       upstream.data.pipe(transformer).pipe(res, { end: false });
-      res.on('close', () => { if (cleanup) cleanup(); logger.info('响应 close', { requestId }); });
-      res.on('finish', () => { if (cleanup) cleanup(); logger.info('响应 finish', { requestId }); });
+      res.on('close', () => { if (cleanup) cleanup(); logger.info('Response close', { requestId }); });
+      res.on('finish', () => { if (cleanup) cleanup(); logger.info('Response finish', { requestId }); });
       return { success: true };
     } catch (upstreamError) {
       identityPool.markIdentityFailure(identity, upstreamError);
-      
-      // 如果上游请求失败，但响应头已发送，需要向客户端发送错误消息
+
+      // If upstream request fails but response headers have been sent, need to send error message to client
       if (res.headersSent) {
-        logger.error('上游请求失败，但响应头已发送，向客户端发送错误', { requestId, error: upstreamError.message });
+        logger.error('Upstream request failed but response headers already sent, sending error to client', { requestId, error: upstreamError.message });
         try {
-          const errorMessage = `上游API请求失败: ${upstreamError.message}`;
+          const errorMessage = `Upstream API request failed: ${upstreamError.message}`;
           const errorChunk = {
             id: `chatcmpl-${randomUUID()}`,
             object: 'chat.completion.chunk',
@@ -576,30 +576,30 @@ async function executeQwenRequest(qwenRequest, identity, usedFallback, wantStrea
           if (cleanup) cleanup();
           res.end();
         } catch (e) {
-          logger.error('发送错误消息失败', e);
+          logger.error('Failed to send error message', e);
           if (cleanup) cleanup();
           res.end();
         }
         return { success: false, error: upstreamError, retryable: false };
       }
-      
+
       return { success: false, error: upstreamError, retryable: true };
     }
   } else {
-    // 非流式：部分上游仍以 SSE 形式返回增量，因此这里优先尝试以流收集
+    // Non-streaming: Some upstream still return incremental results in SSE format, so we prioritize stream collection here
     try {
       const upstream = await http.post(apiUrl, { ...qwenRequest, stream: true, incremental_output: true }, { headers, responseType: 'stream' });
-      logger.info('上游非流式（转流聚合）响应就绪', { requestId, status: upstream.status, identityId: identity.id });
-      
-      // 检查状态码
+      logger.info('Upstream non-streaming (converted to stream aggregation) response ready', { requestId, status: upstream.status, identityId: identity.id });
+
+      // Check status code
       if (upstream.status >= 400) {
         identityPool.markIdentityFailure(identity, new Error(`HTTP ${upstream.status}`));
-        throw new Error(`上游API返回错误: ${upstream.status}`);
+        throw new Error(`Upstream API returned error: ${upstream.status}`);
       }
-      
-      // 标记成功
+
+      // Mark success
       identityPool.markIdentitySuccess(identity);
-      
+
       const content = await collectOpenAICompletionFromSSE(upstream.data);
       const openaiJson = {
         id: `chatcmpl-${randomUUID()}`,
@@ -618,37 +618,37 @@ async function executeQwenRequest(qwenRequest, identity, usedFallback, wantStrea
 
 app.post('/v1/chat/completions', async (req, res) => {
   const requestId = randomUUID();
-  
-  // 获取身份（优先使用身份池，否则使用传统方式）
+
+  // Get identity (prioritize identity pool, otherwise use traditional method)
   let identity = null;
   let token = req.state?.qwenToken;
   let ssxmodItna = req.state?.ssxmodItna;
-  
-  // 如果身份池已初始化且有可用身份，使用身份池
+
+  // If identity pool is initialized and there's an available identity, use the pool
   if (identityPool.initialized) {
     identity = identityPool.getAvailableIdentity();
     if (identity) {
       token = identity.token;
       ssxmodItna = identity.cookie;
-      logger.info('使用身份池中的身份', { identityId: identity.id, requestId });
+      logger.info('Using identity from pool', { identityId: identity.id, requestId });
     }
   }
-  
-  // 如果没有身份或token，返回错误
+
+  // If no identity or token, return error
   if (!token) {
-    return res.status(401).json({ error: '身份验证失败。没有可用的通义千问令牌。' });
+    return res.status(401).json({ error: 'Authentication failed. No available Qwen token.' });
   }
-  
-  // 如果没有从身份池获取到身份，创建临时身份对象（用于兼容）
+
+  // If no identity was retrieved from pool, create temporary identity object (for compatibility)
   if (!identity) {
     identity = { token, cookie: ssxmodItna || getCookie(), id: 'legacy' };
   }
-  
+
   try {
     const openAIRequest = req.body || {};
-    const wantStream = openAIRequest.stream !== false; // 默认流式
-    
-    // 提取提问信息（第一条用户消息）
+    const wantStream = openAIRequest.stream !== false; // Default streaming
+
+    // Extract prompt information (first user message)
     let userPrompt = '';
     if (Array.isArray(openAIRequest.messages)) {
       const firstUserMessage = openAIRequest.messages.find(m => m.role === 'user');
@@ -661,73 +661,73 @@ app.post('/v1/chat/completions', async (req, res) => {
             .map(item => item.text || item.content || '');
           userPrompt = textParts.join(' ');
         }
-        // 截断过长的提示词
+        // Truncate long prompts
         if (userPrompt.length > 200) {
           userPrompt = userPrompt.substring(0, 200) + '...';
         }
       }
     }
-    
+
     const { request: qwenRequest, chatId, usedFallback } = await transformOpenAIRequestToQwen(openAIRequest, token, identity.cookie);
-    logger.info('转换完成，准备请求上游', {
+    logger.info('Transformation complete, preparing to request upstream', {
       chatId,
       usedFallback,
       model: qwenRequest?.model,
       messageCount: Array.isArray(qwenRequest?.messages) ? qwenRequest.messages.length : 0,
       chatType: qwenRequest?.messages?.[0]?.chat_type,
       identityId: identity.id,
-      userPrompt: userPrompt || '(无文本提示)'
+      userPrompt: userPrompt || '(No text prompt)'
     });
-    if (!validateQwenRequest(qwenRequest)) return res.status(400).json({ error: '请求格式转换失败' });
-    
-    // 执行请求（支持重试）
+    if (!validateQwenRequest(qwenRequest)) return res.status(400).json({ error: 'Request format transformation failed' });
+
+    // Execute request (supports retry)
     let result = await executeQwenRequest(qwenRequest, identity, usedFallback, wantStream, requestId, req, res);
-    
-    // 如果失败且可重试，尝试使用其他身份
+
+    // If failed and retryable, try using other identities
     if (!result.success && result.retryable && identityPool.initialized && identity.id !== 'legacy') {
-      const maxRetries = 2; // 最多重试2次
+      const maxRetries = 2; // Maximum 2 retries
       for (let retry = 0; retry < maxRetries; retry++) {
         const nextIdentity = identityPool.getAvailableIdentity();
         if (!nextIdentity || nextIdentity.id === identity.id) {
-          break; // 没有其他可用身份
+          break; // No other available identities
         }
-        
-        logger.info('尝试使用备用身份重试', { 
-          requestId, 
-          oldIdentityId: identity.id, 
+
+        logger.info('Attempting to retry with backup identity', {
+          requestId,
+          oldIdentityId: identity.id,
           newIdentityId: nextIdentity.id,
           retry: retry + 1
         });
-        
-        // 重新创建聊天（使用新身份）
+
+        // Recreate chat (using new identity)
         const newChatId = await createNewChat(nextIdentity.token, nextIdentity.cookie, qwenRequest.model, qwenRequest.messages?.[0]?.chat_type || 't2t');
         if (newChatId) {
           qwenRequest.chat_id = newChatId;
         }
-        
+
         identity = nextIdentity;
         result = await executeQwenRequest(qwenRequest, identity, usedFallback, wantStream, requestId, req, res);
-        
+
         if (result.success) {
-          break; // 重试成功
+          break; // Retry successful
         }
       }
     }
-    
-    // 处理结果
+
+    // Process result
     if (!result.success) {
       throw result.error;
     }
-    
-    // 非流式返回数据
+
+    // Non-streaming returns data
     if (!wantStream && result.data) {
       res.json(result.data);
     }
   } catch (e) {
     const status = e?.response?.status || 500;
     const data = e?.response?.data;
-    logger.error('聊天完成代理中的错误', e, { requestId, status, dataPreview: typeof data === 'string' ? data.slice(0, 500) : JSON.stringify(data || {}).slice(0, 500) });
-    if (!res.headersSent) res.status(status).json({ error: '上游API请求失败', details: data || e.message, requestId });
+    logger.error('Error in chat completion proxy', e, { requestId, status, dataPreview: typeof data === 'string' ? data.slice(0, 500) : JSON.stringify(data || {}).slice(0, 500) });
+    if (!res.headersSent) res.status(status).json({ error: 'Upstream API request failed', details: data || e.message, requestId });
   }
 });
 
@@ -736,7 +736,7 @@ app.get('/health', (req, res) => {
   const poolStatus = identityPool.getPoolStatus();
   
   res.json({ 
-    status: '正常', 
+    status: 'OK', 
     timestamp: new Date().toISOString(), 
     version: '3.11', 
     config: { 
@@ -757,30 +757,30 @@ app.get('/health', (req, res) => {
   });
 });
 
-// 手动刷新token的API端点
+// Manual token refresh API endpoint
 app.post('/refresh-token', async (req, res) => {
   try {
-    logger.info('收到手动刷新token请求');
+    logger.info('Received manual token refresh request');
     const result = await getTokenFromCookie();
-    
+
     if (result.success) {
-      // 如果是环境变量模式，直接更新内存中的配置
+      // If in environment variable mode, directly update the configuration in memory
       if (result.envMode && result.newToken) {
         config.QWEN_TOKEN = result.newToken;
-        logger.info('Token刷新成功（环境变量模式，已更新内存配置）', { 
-          newTokenLength: result.newToken.length 
+        logger.info('Token refresh successful (environment variable mode, memory configuration updated)', {
+          newTokenLength: result.newToken.length
         });
       } else {
-        // 更新配置文件
+        // Update configuration file
         reloadConfig();
-        logger.info('Token刷新成功，已更新配置文件');
+        logger.info('Token refresh successful, configuration file updated');
       }
-      
+
       const newTokenInfo = getTokenRefreshInfo();
-      
+
       res.json({
         success: true,
-        message: 'Token刷新成功',
+        message: 'Token refreshed successfully',
         timestamp: new Date().toISOString(),
         token: {
           valid: !newTokenInfo.isExpired,
@@ -791,105 +791,105 @@ app.post('/refresh-token', async (req, res) => {
     } else {
       res.status(500).json({
         success: false,
-        message: 'Token刷新失败',
+        message: 'Token refresh failed',
         error: result.error,
         timestamp: new Date().toISOString()
       });
     }
   } catch (error) {
-    logger.error('手动刷新token时发生错误', error);
+    logger.error('Error occurred during manual token refresh', error);
     res.status(500).json({
       success: false,
-      message: 'Token刷新过程中发生错误',
+      message: 'Error occurred during token refresh process',
       error: error.message,
       timestamp: new Date().toISOString()
     });
   }
 });
 
-// 启动服务器
+// Start server
 function startServer() {
   const port = getServerPort();
 app.listen(port, () => {
   console.log('='.repeat(80));
-  console.log('🚀 启动通义千问 API 代理服务器 v3.11 (Node.js)');
-  console.log('📋 配置状态:');
-    console.log(`  🔑 QWEN_TOKEN: ${getQwenToken() ? '✅ 已配置' : '❌ 未配置'}`);
-    console.log(`  🔐 API_KEY: ${getApiKey() ? '✅ 已配置' : '⚠️ 未配置 (开放模式)'}`);
+  console.log('🚀 Starting Qwen API Proxy Server v3.11 (Node.js)');
+  console.log('📋 Configuration status:');
+    console.log(`  🔑 QWEN_TOKEN: ${getQwenToken() ? '✅ Configured' : '❌ Not configured'}`);
+    console.log(`  🔐 API_KEY: ${getApiKey() ? '✅ Configured' : '⚠️ Not configured (Open mode)'}`);
     const cookies = getCookies();
     const cookieCount = cookies.length;
-    console.log(`  🍪 Cookie文件: ${cookieCount > 0 ? `✅ 已配置 (${cookieCount}个)` : '⚠️ 未配置'}`);
+    console.log(`  🍪 Cookie files: ${cookieCount > 0 ? `✅ Configured (${cookieCount})` : '⚠️ Not configured'}`);
     if (cookieCount > 1) {
       const poolStatus = identityPool.getPoolStatus();
-      console.log(`  🔄 负载均衡: ✅ 启用 (${poolStatus.healthy}/${poolStatus.total} 可用)`);
+      console.log(`  🔄 Load balancing: ✅ Enabled (${poolStatus.healthy}/${poolStatus.total} available)`);
     }
-    console.log(`  🐛 调试模式: ${isDebugMode() ? '✅ 启用' : '❌ 禁用'}`);
-    console.log(`  🔒 认证模式: ${isServerMode() ? '服务器端' : '客户端'}`);
-    console.log(`  🔄 自动刷新: ${config.AUTO_REFRESH_TOKEN !== false ? '✅ 启用' : '❌ 禁用'}`);
-    console.log(`  🗑️  定时删除: ${getQwenToken() ? '✅ 启用 (每1小时删除第2页聊天记录)' : '⚠️ 未启用 (需要 QWEN_TOKEN)'}`);
-  console.log('\n🔌 API 端点:');
-  console.log('  📋 GET  /v1/models - 获取模型列表');
-  console.log('  💬 POST /v1/chat/completions - 聊天完成');
-  console.log('  ❤️  GET  /health - 健康检查');
-    console.log('  🔄 POST /refresh-token - 手动刷新token');
-  console.log('  🏠 GET  / - 主页');
-  console.log('🌐 访问地址: http://localhost:' + port);
+    console.log(`  🐛 Debug mode: ${isDebugMode() ? '✅ Enabled' : '❌ Disabled'}`);
+    console.log(`  🔒 Authentication mode: ${isServerMode() ? 'Server-side' : 'Client-side'}`);
+    console.log(`  🔄 Auto refresh: ${config.AUTO_REFRESH_TOKEN !== false ? '✅ Enabled' : '❌ Disabled'}`);
+    console.log(`  🗑️  Scheduled deletion: ${getQwenToken() ? '✅ Enabled (Delete page 2 chat history every hour)' : '⚠️ Not enabled (requires QWEN_TOKEN)'}`);
+  console.log('\n🔌 API Endpoints:');
+  console.log('  📋 GET  /v1/models - Get model list');
+  console.log('  💬 POST /v1/chat/completions - Chat completion');
+  console.log('  ❤️  GET  /health - Health check');
+    console.log('  🔄 POST /refresh-token - Manual token refresh');
+  console.log('  🏠 GET  / - Homepage');
+  console.log('🌐 Access address: http://localhost:' + port);
   console.log('='.repeat(80));
 });
 }
 
-// 修改初始化流程，在完成后启动服务器
+// Modify initialization flow, start server after completion
 async function initialize() {
   validateConfig();
   checkTokenExpiry();
-  
-  // 初始化身份池（优先）
+
+  // Initialize identity pool (priority)
   const cookies = getCookies();
   if (cookies.length > 1) {
-    logger.info(`检测到 ${cookies.length} 个 Cookie，启用负载均衡模式`);
+    logger.info(`Detected ${cookies.length} cookies, enabling load balancing mode`);
     await identityPool.initialize();
-    
-    // 启动身份池的token自动刷新调度器
+
+    // Start the token auto-refresh scheduler for identity pool
     if (config.AUTO_REFRESH_TOKEN !== false) {
       const intervalHours = Number(
-        process.env.TOKEN_REFRESH_INTERVAL_HOURS || 
-        config.TOKEN_REFRESH_INTERVAL_HOURS || 
+        process.env.TOKEN_REFRESH_INTERVAL_HOURS ||
+        config.TOKEN_REFRESH_INTERVAL_HOURS ||
         24
       );
       const interval = intervalHours * 60 * 60 * 1000;
-      
+
       setInterval(async () => {
         await identityPool.refreshExpiredTokens();
       }, interval);
-      
-      logger.info('身份池 Token 自动刷新调度器已启动', { 
-        checkInterval: `${intervalHours}小时`
+
+      logger.info('Identity pool token auto-refresh scheduler started', {
+        checkInterval: `${intervalHours} hours`
       });
     }
   } else {
-    logger.info('使用传统单 Cookie 模式');
-    // 自动获取token（传统模式）
+    logger.info('Using traditional single cookie mode');
+    // Automatically acquire token (traditional mode)
     await initializeToken();
-    
-    // 启动token自动刷新调度器（传入config对象以便环境变量模式下更新内存）
+
+    // Start token auto-refresh scheduler (pass config object to update memory in environment variable mode)
     if (config.AUTO_REFRESH_TOKEN !== false) {
       startTokenRefreshScheduler(config);
     }
   }
-  
-  // 启动定时删除任务：每1小时删除一次第2页的聊天记录
-  // 只在有 token 的情况下启动删除任务
+
+  // Start scheduled deletion task: delete page 2 chat history every 1 hour
+  // Only start deletion task when token is available
   if (getQwenToken() || (identityPool.initialized && identityPool.getPoolStatus().healthy > 0)) {
-    startChatDeletionScheduler(60); // 每60分钟执行一次
+    startChatDeletionScheduler(60); // Execute every 60 minutes
   } else {
-    logger.warn('未配置 QWEN_TOKEN，跳过启动定时删除任务');
+    logger.warn('QWEN_TOKEN not configured, skipping scheduled deletion task startup');
   }
-  
-  // 启动服务器
+
+  // Start server
   startServer();
 }
 
-// 执行初始化
+// Execute initialization
 initialize();
 
 

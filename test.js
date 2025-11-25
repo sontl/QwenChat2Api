@@ -13,27 +13,27 @@ function log(title, payload) {
 }
 
 async function testHealth() {
-  log('测试 /health 开始');
+  log('Testing /health start');
   const res = await axios.get(`${BASE_URL}/health`, { timeout: 15000 });
-  if (res.status !== 200) throw new Error(`/health 状态码异常: ${res.status}`);
-  log('测试 /health 通过', res.data);
+  if (res.status !== 200) throw new Error(`/health status code error: ${res.status}`);
+  log('Testing /health passed', res.data);
 }
 
 async function testModels() {
-  log('测试 /v1/models 开始');
+  log('Testing /v1/models start');
   const res = await axios.get(`${BASE_URL}/v1/models`, { headers: AUTH_HEADER, timeout: 20000 });
-  if (res.status !== 200) throw new Error(`/v1/models 状态码异常: ${res.status}`);
+  if (res.status !== 200) throw new Error(`/v1/models status code error: ${res.status}`);
   const list = res.data?.data || [];
-  log('测试 /v1/models 通过，模型数量', list.length);
+  log('Testing /v1/models passed, model count', list.length);
 }
 
 async function testChatStream() {
-  log('测试 /v1/chat/completions (SSE-文本) 开始');
+  log('Testing /v1/chat/completions (SSE-text) start');
   const body = {
     model: 'qwen3-max',
     stream: true,
     messages: [
-      { role: 'user', content: '你好，请用一两句话介绍一下你自己。' }
+      { role: 'user', content: 'Hello, please introduce yourself in one or two sentences.' }
     ]
   };
 
@@ -52,7 +52,7 @@ async function testChatStream() {
       const lines = text.split(/\n/).filter(Boolean);
       for (const line of lines) {
         if (line.trim() === 'data: [DONE]') {
-          log('聊天流接收完成 [DONE]');
+          log('Chat stream received complete [DONE]');
           done = true;
           res.data.destroy();
           resolve();
@@ -61,7 +61,7 @@ async function testChatStream() {
         if (line.startsWith('data: ')) {
           const payload = line.slice(6);
           chunkCount += 1;
-          log(`SSE 块 ${chunkCount}`, payload.slice(0, 200));
+          log(`SSE chunk ${chunkCount}`, payload.slice(0, 200));
         }
       }
     });
@@ -72,7 +72,7 @@ async function testChatStream() {
 
     res.data.on('end', () => {
       if (!done) {
-        log('聊天流结束(未收到 [DONE])，仍视为通过');
+        log('Chat stream ended (no [DONE] received), still considered passed');
         resolve();
       }
     });
@@ -80,19 +80,19 @@ async function testChatStream() {
 }
 
 async function testChatWithImage() {
-  log('测试 /v1/chat/completions (SSE-图片) 开始');
+  log('Testing /v1/chat/completions (SSE-image) start');
 
-  // 读取当前目录中的图片：alert (2).jpg
+  // Read image from current directory: alert (2).jpg
   const imagePath = path.join(__dirname, 'alert (2).jpg');
   if (!fs.existsSync(imagePath)) {
-    throw new Error(`未找到图片文件: ${imagePath}`);
+    throw new Error(`Image file not found: ${imagePath}`);
   }
   const buffer = fs.readFileSync(imagePath);
   const base64 = buffer.toString('base64');
-  const mimeType = 'image/jpeg'; // 文件名是 .jpg
+  const mimeType = 'image/jpeg'; // File name is .jpg
   const dataUrl = `data:${mimeType};base64,${base64}`;
 
-  // 视觉对话：模型仍使用 qwen3-max（非 -image 后缀），消息里携带图片
+  // Visual conversation: still use qwen3-max model (non -image suffix), messages carry images
   const body = {
     model: 'qwen3-max',
     stream: true,
@@ -100,7 +100,7 @@ async function testChatWithImage() {
       {
         role: 'user',
         content: [
-          { type: 'text', text: '请描述这张图片的内容，并指出主要元素。' },
+          { type: 'text', text: 'Please describe the content of this image and identify the main elements.' },
           { type: 'image_url', image_url: { url: dataUrl } }
         ]
       }
@@ -122,7 +122,7 @@ async function testChatWithImage() {
       const lines = text.split(/\n/).filter(Boolean);
       for (const line of lines) {
         if (line.trim() === 'data: [DONE]') {
-          log('图片对话流接收完成 [DONE]');
+          log('Image conversation stream received complete [DONE]');
           done = true;
           res.data.destroy();
           resolve();
@@ -131,7 +131,7 @@ async function testChatWithImage() {
         if (line.startsWith('data: ')) {
           const payload = line.slice(6);
           chunkCount += 1;
-          log(`SSE(IMG) 块 ${chunkCount}`, payload.slice(0, 200));
+          log(`SSE(IMG) chunk ${chunkCount}`, payload.slice(0, 200));
         }
       }
     });
@@ -142,7 +142,7 @@ async function testChatWithImage() {
 
     res.data.on('end', () => {
       if (!done) {
-        log('图片对话流结束(未收到 [DONE])，仍视为通过');
+        log('Image conversation stream ended (no [DONE] received), still considered passed');
         resolve();
       }
     });
@@ -150,7 +150,7 @@ async function testChatWithImage() {
 }
 
 async function testChatWithRemoteImageUrl() {
-  log('测试 /v1/chat/completions (SSE-远程图片URL) 开始');
+  log('Testing /v1/chat/completions (SSE-remote image URL) start');
 
   const body = {
     model: 'qwen3-max',
@@ -159,7 +159,7 @@ async function testChatWithRemoteImageUrl() {
       {
         role: 'user',
         content: [
-          { type: 'text', text: '描述这张图片的内容' },
+          { type: 'text', text: 'Describe the content of this image' },
           { type: 'image_url', image_url: { url: 'https://www.baidu.com/img/flexible/logo/pc/result@2.png' } }
         ]
       }
@@ -181,7 +181,7 @@ async function testChatWithRemoteImageUrl() {
       const lines = text.split(/\n/).filter(Boolean);
       for (const line of lines) {
         if (line.trim() === 'data: [DONE]') {
-          log('远程图片对话流接收完成 [DONE]');
+          log('Remote image conversation stream received complete [DONE]');
           done = true;
           res.data.destroy();
           resolve();
@@ -190,7 +190,7 @@ async function testChatWithRemoteImageUrl() {
         if (line.startsWith('data: ')) {
           const payload = line.slice(6);
           chunkCount += 1;
-          log(`SSE(REMOTE_IMG) 块 ${chunkCount}`, payload.slice(0, 200));
+          log(`SSE(REMOTE_IMG) chunk ${chunkCount}`, payload.slice(0, 200));
         }
       }
     });
@@ -201,7 +201,7 @@ async function testChatWithRemoteImageUrl() {
 
     res.data.on('end', () => {
       if (!done) {
-        log('远程图片对话流结束(未收到 [DONE])，仍视为通过');
+        log('Remote image conversation stream ended (no [DONE] received), still considered passed');
         resolve();
       }
     });
@@ -209,42 +209,42 @@ async function testChatWithRemoteImageUrl() {
 }
 
 async function testChatNonStream() {
-  log('测试 /v1/chat/completions (非流) 开始');
+  log('Testing /v1/chat/completions (non-stream) start');
   const body = {
     model: 'qwen3-max',
     stream: false,
     messages: [
-      { role: 'user', content: '请用一句话介绍杭州。' }
+      { role: 'user', content: 'Please introduce Hangzhou in one sentence.' }
     ]
   };
   const res = await axios.post(`${BASE_URL}/v1/chat/completions`, body, {
     headers: { 'Content-Type': 'application/json', ...AUTH_HEADER },
     timeout: 30000
   });
-  if (res.status !== 200) throw new Error(`/v1/chat/completions 非流 状态码异常: ${res.status}`);
+  if (res.status !== 200) throw new Error(`/v1/chat/completions non-stream status code error: ${res.status}`);
   const content = res.data?.choices?.[0]?.message?.content;
   if (!content) {
-    log('非流响应内容为空，完整返回体', res.data);
+    log('Non-stream response content is empty, complete response body', res.data);
   } else {
-    log('测试 /v1/chat/completions (非流) 通过', content.slice(0, 120));
+    log('Testing /v1/chat/completions (non-stream) passed', content.slice(0, 120));
   }
 }
 
 async function runAll() {
   try {
-    log('开始测试', { baseURL: BASE_URL, hasApiKey: !!apiKey });
+    log('Starting tests', { baseURL: BASE_URL, hasApiKey: !!apiKey });
     await testHealth();
     await testModels();
     await testChatStream();
     await testChatNonStream();
     await testChatWithRemoteImageUrl();
     await testChatWithImage();
-    log('全部测试通过 ✅');
+    log('All tests passed ✅');
     process.exit(0);
   } catch (e) {
-    console.error('测试失败 ❌', e?.message || e);
+    console.error('Tests failed ❌', e?.message || e);
     if (e?.code === 'ECONNREFUSED') {
-      console.error(`无法连接到服务 ${BASE_URL}，请先运行: npm run start`);
+      console.error(`Cannot connect to service ${BASE_URL}, please run first: npm run start`);
     }
     process.exit(1);
   }

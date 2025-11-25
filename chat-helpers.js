@@ -84,7 +84,7 @@ async function parserMessages(messages, thinking_config, chat_type) {
     messages[messages.length - 1].chat_type = chat_type;
     return messages;
   } catch (e) {
-    return [{ role: 'user', content: "直接返回字符串：'聊天历史处理有误...'", chat_type: 't2t', extra: {}, feature_config: { output_schema: 'phase', enabled: false } }];
+    return [{ role: 'user', content: "Return string directly: 'Chat history processing error...'", chat_type: 't2t', extra: {}, feature_config: { output_schema: 'phase', enabled: false } }];
   }
 }
 
